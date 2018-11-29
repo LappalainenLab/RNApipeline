@@ -9,6 +9,7 @@ $(command -v java > /dev/null 2> /dev/null) || (echo "Cannot find Java" >&2; exi
 TRIMMOMATIC='/nfs/sw/trimmomatic/trimmomatic-0.36/trimmomatic-0.36.jar'
 ADAPTERS_DEFAULT='/nfs/sw/trimmomatic/trimmomatic-0.36/adapters/NexteraPE-PE.fa'
 OUTDIR_DEFAULT="$(pwd -P)/Sequence_Trimming"
+PROJECT_DEFAULT='Trimmomatic'
 
 #   Usage message
 function Usage() {
@@ -45,6 +46,10 @@ while [[ "$#" -ge 1 ]]; do
             ;;
         -s|--split)
             SPLIT="$2"
+            shift
+            ;;
+        -p|--project)
+            PROJECT="$2"
             shift
             ;;
         -64)
@@ -108,3 +113,5 @@ fi
         SLIDINGWINDOW:4:15 \
         MINLEN:36
 )
+
+echo "${OUTPUTS[@]}" | tr ' ' '\n' | grep -E 'paired\.fastq\.gz|trimmed\.fastq\.gz' >> "${OUTDIR}/${PROJECT}_trimmed.txt"
