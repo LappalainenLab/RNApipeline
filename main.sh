@@ -7,13 +7,13 @@ $(command -v qsub > /dev/null 2> /dev/null) || (echo "This tool submits jobs to 
 #   Usage message
 function Usage() {
     echo -e "\
-Usage:  $(basename $0) <handler> Config \n\
+Usage:  $(basename $0) <handler> proj.conf \n\
 Where:  <handler> is one of:
             1 or Quality_Assessment \n\
             2 or Sequence_Trimming \n\
             3 or Read_Mapping \n\
             4 or SAM_Processing \n\
-And:    Config is the full file path to the configuration file
+And:    proj.conf is the full file path to the configuration file
 " >&2
     exit 1
 }
