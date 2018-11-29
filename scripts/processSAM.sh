@@ -10,7 +10,8 @@ for dep in ${DEPENDENCIES[@]}; do $(command -v ${dep} > /dev/null 2> /dev/null) 
 PICARD_DEFAULT='/gpfs/commons/groups/lappalainen_lab/scastel/projects/tl_ase_pipeline/software/picard-tools-1.124/picard.jar'
 REF_DEFAULT='/gpfs/commons/home/scastel/references/fasta/GRCh37.fa'
 MEM_DEFAULT='7000m'
-OUT_DEFAULT="$(pwd -P)/bams"
+OUT_DEFAULT="$(pwd -P)/SAM_Processing"
+PROJECT_DEFAULT="SAM_Processing"
 
 #   Usage message
 function Usage() {
@@ -46,7 +47,7 @@ while [[ "$#" -gt 1 ]]; do
             shift
             ;;
         -o|--outdir) # Output directory
-            OUTDIR="$2"
+            OUTDIR="${2}/SAM_Processing"
             shift
             ;;
         --csi) # Use CSI index
@@ -58,6 +59,10 @@ while [[ "$#" -gt 1 ]]; do
             ;;
         -m|--max-mem) # Max memory
             MAX_MEM="$2"
+            shift
+            ;;
+        --project) # Project name
+            PROJECT="$2"
             shift
             ;;
         *)
@@ -77,6 +82,7 @@ done
 [[ -z "${OUTDIR}" ]] && OUTDIR="${OUT_DEFAULT}"
 [[ -z "${MAX_MEM}" ]] && MAX_MEM="${MEM_DEFAULT}"
 [[ -z "${INDEX_TYPE}" ]] && INDEX_TYPE='-b'
+[[ -z "${PROJECT}" ]] && PROJECT="${PROJECT_DEFAULT}"
 
 #   Check for faidx
 [[ -f "${REF_GEN}.fai" ]] || (echo "Generating faidx for reference genome" >&2; set -x; samtools faidx "${REF_GEN}")
@@ -91,11 +97,9 @@ SAM_BASE="$(basename ${SAM} .sam)"
 (set -x; mkdir -p "${RAW_DIR}" "${SORT_DIR}" "${RG_DIR}" "${FIN_DIR}/metrics")
 
 #   Convert from SAM to BAM
-# echo "Converting ${SAM} to ${RAW_DIR}/${SAM_BASE}_raw.bam" >&2
 (set -x; samtools view -bhT "${REF_GEN}" "${SAM}" > "${RAW_DIR}/${SAM_BASE}_raw.bam")
 
 #   Sort the BAM file
-# echo "Sorting ${RAW_DIR}/${SAM_BASE}_raw.bam to ${SORT_DIR}/${SAM_BASE}_sorted.bam" >&2
 (set -x; samtools sort "${RAW_DIR}/${SAM_BASE}_raw.bam" "${SORT_DIR}/${SAM_BASE}_sorted")
 
 #   Add read groups
@@ -138,3 +142,4 @@ case "${INDEX_TYPE}" in
 esac
 
 (set -x; samtools index "${INDEX_TYPE}" "${FIN_DIR}/${SAM_BASE}_finished.bam")
+echo "${FIN_DIR}/${SAM_BASE}_finished.bam" >> "${OUTDIR}/${PROJECT}_bams.txt"

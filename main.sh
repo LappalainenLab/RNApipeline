@@ -93,11 +93,13 @@ bash "${CONFIG}" > /dev/null 2> /dev/null # Load any modules
 [[ -z "${OUT_DIR}" ]] && OUT_DIR="${SEQUENCE_HANDLING}/${PROJECT}"
 mkdir -p "${OUT_DIR}"
 
+[[ -z "${EMAIL}" ]] && QSUB_EMAIL='' || QSUB_EMAIL="-m abe -M ${EMAIL}"
+
 case "${ROUTINE}" in
     1|Quality_Assessment)
         echo "$(basename $0): Assessing quality..." >&2
         checkSamples ${RAW_SAMPLES}
-        echo "${SEQUENCE_HANDLING}/scripts/assessQuality.sh --sample-list ${RAW_SAMPLES} --outdir ${OUT_DIR} --project ${PROJECT}" | qsub ${QA_QSUB}
+        echo "${SEQUENCE_HANDLING}/scripts/assessQuality.sh --sample-list ${RAW_SAMPLES} --outdir ${OUT_DIR} --project ${PROJECT}" | qsub ${QA_QSUB} ${QSUB_EMAIL}
         ;;
     2|Sequence_Trimming)
         echo "$(basename $0): Trimming read sequences..." >&2
@@ -116,17 +118,17 @@ case "${ROUTINE}" in
         #   Submit paired samples
         [[ "${#FORWARD[@]}" -ne "${#REVERSE[@]}" ]] && (echo "Unequal numbers of forward and reverse samples" >&2; exit 1)
         for i in $(seq ${#FORWARD[@]}); do
-            echo "${SEQUENCE_HANDLING}/scripts/trimFASTQ.sh --forward ${FORWARD[$(($i - 1))]} --reverse ${REVERSE[$(($i - 1))]} --outdir ${OUTDIR} --adapters ${ADAPTERS} --project ${PROJECT} ${QUAL}" | qsub ${ST_QSUB}
+            echo "${SEQUENCE_HANDLING}/scripts/trimFASTQ.sh --forward ${FORWARD[$(($i - 1))]} --reverse ${REVERSE[$(($i - 1))]} --outdir ${OUT_DIR} --adapters ${ADAPTERS} --project ${PROJECT} ${QUAL}" | qsub ${ST_QSUB} ${QSUB_EMAIL}
         done
         #   Submit single samples
         for i in $(seq ${#SINGLES[@]}); do
-            echo "${SEQUENCE_HANDLING}/scripts/trimFASTQ.sh --forward ${SINGLES[$(($i - 1))]} --outdir ${OUTDIR} --adapters ${ADAPTERS} ${QUAL}" | qsub ${ST_QSUB}
+            echo "${SEQUENCE_HANDLING}/scripts/trimFASTQ.sh --forward ${SINGLES[$(($i - 1))]} --outdir ${OUT_DIR} --adapters ${ADAPTERS} ${QUAL}" | qsub ${ST_QSUB} ${QSUB_EMAIL}
         done
         ;;
     3|Read_Mapping)
         echo "$(basename $0): Mapping reads..." >&2
         checkSamples "${TRIMMED_LIST}"
-        NTHREADS=$(Nthreads ${RM_QSUB})
+        NTHREADS=$(Nthreads "${RM_QSUB}")
         #   Partition samples into forward, reverse, and single-ended reads
         declare -a FORWARD=($(grep -E "${FORWARD_TRIMMED}" ${TRIMMED_LIST} | sort))
         declare -a REVERSE=($(grep -E "${REVERSE_TRIMMED}" ${TRIMMED_LIST} | sort))
@@ -135,16 +137,31 @@ case "${ROUTINE}" in
         [[ "${#FORWARD[@]}" -ne "${#REVERSE[@]}" ]] && (echo "Unequal numbers of forward and reverse samples" >&2; exit 1)
         for i in $(seq ${#FORWARD[@]}); do
             NAME=$(basename ${FORWARD[$(($i - 1))]} ${FORWARD_TRIMMED})
-            echo "${SEQUENCE_HANDLING}/scripts/starMap.sh --forward ${FORWARD[$(($i - 1))]} --reverse ${REVERSE[$(($i - 1))]} --index ${REF_IND} --genome ${REF_GEN} --threads ${NTHREADS} --sample-name ${NAME} --project ${PROJECT} --outdir ${OUT_DIR}" | qsub ${RM_QSUB}
+            echo "${SEQUENCE_HANDLING}/scripts/starMap.sh --forward ${FORWARD[$(($i - 1))]} --reverse ${REVERSE[$(($i - 1))]} --index ${REF_IND} --genome ${REF_GEN} --threads ${NTHREADS} --sample-name ${NAME} --project ${PROJECT} --outdir ${OUT_DIR}" | qsub ${RM_QSUB} ${QSUB_EMAIL}
         done
         #   Submit single samples
         for i in $(seq ${#SINGLES[@]}); do
             NAME=$(basename ${SINGLES[$(($i - 1))]} ${FORWARD_TRIMMED})
-            echo "${SEQUENCE_HANDLING}/scripts/starMap.sh --forward ${SINGLES[$(($i - 1))]} --index ${REF_IND} --genome ${REF_GEN} --threads ${NTHREADS} --sample-name ${NAME} --project ${PROJECT} --outdir ${OUT_DIR}" | qsub ${RM_QSUB}
+            echo "${SEQUENCE_HANDLING}/scripts/starMap.sh --forward ${SINGLES[$(($i - 1))]} --index ${REF_IND} --genome ${REF_GEN} --threads ${NTHREADS} --sample-name ${NAME} --project ${PROJECT} --outdir ${OUT_DIR}" | qsub ${RM_QSUB} ${QSUB_EMAIL}
         done
         ;;
     4|SAM_Processing)
         echo "$(basename $0): Processing SAM files" >&2
+        checkSamples "${MAPPED_LIST}"
+        MAXMEM=$(MaxMem "${SP_QSUB}")
+        case ${INDEX_TYPE} in
+            BAI)
+                INDEXCMD=''
+            CSI)
+                INDEXCMD='--csi'
+            *)
+                echo "Unknown index type ${INDEX_TYPE}, please choose from 'BAI' or 'CSI'"
+                exit 1
+                ;;
+        esac
+        for sample in $(<${MAPPED_LIST}); do
+            echo "${SEQUENCE_HANDLING}/scripts/processSAM.sh --sam-file ${sample} --reference ${REF_GEN} --outdir ${OUT_DIR} --max-mem ${MAXMEM} --project ${PROJECT} ${INDEXCMD}" | qsub ${SP_QSUB} ${QSUB_EMAIL}
+        done
         ;;
     Gene_Counting)
         echo "$(basename $0): Counting genes..." >&2
