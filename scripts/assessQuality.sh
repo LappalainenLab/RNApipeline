@@ -15,6 +15,7 @@ Where:      ... \n\
     exit 1
 }
 
+#   Export the function
 export -f Usage
 
 # A function to make specific outdirectories

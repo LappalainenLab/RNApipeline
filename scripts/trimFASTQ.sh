@@ -2,10 +2,15 @@
 
 set -eo pipefail
 
+#   Check dependencies
+$(command -v java > /dev/null 2> /dev/null) || (echo "Cannot find Java" >&2; exit 1)
+
+#   Set some defaults
 TRIMMOMATIC='/nfs/sw/trimmomatic/trimmomatic-0.36/trimmomatic-0.36.jar'
 ADAPTERS_DEFAULT='/nfs/sw/trimmomatic/trimmomatic-0.36/adapters/NexteraPE-PE.fa'
-OUTDIR_DEFAULT="$(pwd -P)/trimmed"
+OUTDIR_DEFAULT="$(pwd -P)/Sequence_Trimming"
 
+#   Usage message
 function Usage() {
     echo -e "\
 Usage: $(basename $0) -f|--forward [-r|--reverse] [-o|--outdirectory] [-a|--adapters] [-s|--split] [-64] \n\
@@ -13,8 +18,13 @@ Usage: $(basename $0) -f|--forward [-r|--reverse] [-o|--outdirectory] [-a|--adap
     exit 1
 }
 
+#   Export the function
+export -f Usage
+
+#   Ensure we have the proper number of arguments
 [[ "$#" -lt 1 ]] && Usage
 
+#   Parse arguments
 while [[ "$#" -ge 1 ]]; do
     case $1 in
         -f|--forward)
@@ -26,7 +36,7 @@ while [[ "$#" -ge 1 ]]; do
             shift
             ;;
         -o|--outdirectory)
-            OUTDIR="$2"
+            OUTDIR="${2}/Sequence_Trimming"
             shift
             ;;
         -a|--adapters)
@@ -47,6 +57,7 @@ while [[ "$#" -ge 1 ]]; do
     shift
 done
 
+#   Check arguments
 [[ -z "${FORWARD}" ]] && Usage
 [[ -z "${REVERSE}" ]] && MODE='SE' || MODE='PE'
 [[ -z "${OUTDIR}" ]] && OUTDIR="${OUTDIR_DEFAULT}"
@@ -57,8 +68,10 @@ done
 [[ "${MODE}" == 'PE' && ! -f "${REVERSE}" ]] && (echo "Cannot find reverse FASTQ ${REVERSE}" >&2; exit 1)
 [[ -f "${ADAPTERS}" ]] || (echo "Cannot find adapters file ${ADAPTERS}" >&2; exit 1)
 
+#   Make an output directory
 (set -x; mkdir -p "${OUTDIR}")
 
+#   Figure out our outbase
 if [[ -z "${SPLIT}" ]]; then
     EXTENSION="$(echo ${FORWARD} | rev | cut -f 1 -d '.' | rev)"
     [[ "${EXTENSION}" == 'gz' ]] && EXTENSION=".$(echo ${FORWARD} | rev | cut -f 1,2 -d '.' | rev)"
@@ -68,6 +81,7 @@ else
     OUT_BASE="${OUT_BASE/${SPLIT}*/}"
 fi
 
+#   Make an array of output file names
 declare -a OUTPUTS=()
 if [[ "${MODE}" == 'PE' ]]; then
     for direction in forward reverse; do
@@ -79,6 +93,7 @@ else
     OUTPUTS+=("${OUTDIR}/${OUT_BASE}_trimmed.fastq.gz")
 fi
 
+#   Run Trimmomatic
 (
     set -x;
     java -jar "${TRIMMOMATIC}" \
