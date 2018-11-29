@@ -61,3 +61,21 @@ A brief usage message can be viewed by passing no arguments to `sequence_handlin
 ```shell
 ./main.sh
 ```
+
+## Handlers
+
+### Quality\_Assessment
+
+The Quality_Assessment handler runs [FastQC](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/) on a series of samples organized in a project directory for quality control.<!-- In addition, a list of all output zip files will be generated for use with the Read_Depths handler. It is best to perform quality assesment on raw FASTQ data and also before and after quality trimming.-->
+
+### Sequence\_Trimming
+
+The Sequence_Trimming handler runs Trimmomatic on a series of samples, removing adapters and trimming based on quality. This handler supports both paired-end and single-ended samples. A list of all trimmed samples will be output at the end of all runs.
+
+### Read\_Mapping
+
+The Read_Mapping handler maps reads to a reference genome using STAR. This handler supports both paired-end and single-ended samples. A list of all mapped samples will be output at the end of all runs.
+
+### SAM\_Processing
+
+The SAM_Processing handler converts the SAM files from read mapping to the BAM format using [SAMTools](http://www.htslib.org/) and Picard. In the conversion process, it will sort the reads and mark duplicates for the finished BAM file.
