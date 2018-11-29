@@ -12,6 +12,7 @@ for dep in ${DEPENDENCIES[@]}; do $(command -v ${dep} > /dev/null 2> /dev/null) 
 THREADS_DEFAULT='1'
 GENOME_DEFAULT='/gpfs/commons/home/scastel/references/fasta/GRCh37.fa'
 INDEX_DEFAULT='/gpfs/commons/home/scastel/references/star_noj_GRCh37'
+PROJECT_DEFAULT='starMap'
 
 #   Usage message
 function Usage() {
@@ -101,6 +102,14 @@ while [[ "$#" -gt 1 ]]; do
             THREADS="$2"
             shift
             ;;
+        -n|--sample-name) # Basename of sample
+            SAMPLE_NAME="$2"
+            shift
+            ;;
+        -p|--project) # Project name
+            PROJECT="$2"
+            shift
+            ;;
         -o|--outdir) # Set output directory
             OUTDIR="$2"
             shift
@@ -120,6 +129,8 @@ done
 [[ -f "${FWD}" ]] || (echo "Cannot find input file ${FWD}" >&2; exit 1)
 [[ ! -z "${REV}" && ! -f "${REV}" ]] && (echo "Cannot find reverse file ${REV}" >&2; exit 1)
 [[ -z "${THREADS}" ]] && THREADS="${THREADS_DEFAULT}"
+[[ -z "${SAMPLE_NAME}" ]] && SAMPLE_NAME="$(basename ${FWD} .$(basename ${FWD} | cut -f 2- -d '.'))"
+[[ -z "${PROJECT}" ]] && PROJECT="${PROJECT_DEFAULT}"
 
 #   Check genome directory
 if [[ -z "${GEN_DIR}" || ! -d "${GEN_DIR}" ]]; then
@@ -133,7 +144,7 @@ fi
 
 #   Check single- vs. paired-end mode
 READ_FILES="${FWD}"
-OUT_BASE="${OUTDIR}/$(basename ${FWD} .$(basename ${FWD} | cut -f 2- -d '.'))/"
+OUT_BASE="${OUTDIR}/${SAMPLE_NAME}/"
 PASS_ONE="${OUT_BASE}Round1/"
 TEMP_ONE="${PASS_ONE}tmp/"
 (set -x; mkdir -p "${OUT_BASE}" "${PASS_ONE}")
@@ -178,3 +189,6 @@ TEMP_TWO="${PASS_TWO}tmp/"
 )
 
 (set -x; rm -rf ${TEMP_ONE} ${TEMP_TWO})
+
+(set -x; mv "${PASS_TWO}/Aligned.out.sam" "${BASS_TWO}/${SAMPLE_NAME}.out.sam")
+echo "${BASS_TWO}/${SAMPLE_NAME}.out.sam" >> "${OUTDIR}/${PROJECT}_mapped.txt"

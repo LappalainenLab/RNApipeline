@@ -96,6 +96,7 @@ mkdir -p "${OUT_DIR}"
 case "${ROUTINE}" in
     1|Quality_Assessment)
         echo "$(basename $0): Assessing quality..." >&2
+        checkSamples ${RAW_SAMPLES}
         echo "${SEQUENCE_HANDLING}/scripts/assessQuality.sh --sample-list ${RAW_SAMPLES} --outdir ${OUT_DIR} --project ${PROJECT}" | qsub ${QA_QSUB}
         ;;
     2|Sequence_Trimming)
@@ -115,7 +116,7 @@ case "${ROUTINE}" in
         #   Submit paired samples
         [[ "${#FORWARD[@]}" -ne "${#REVERSE[@]}" ]] && (echo "Unequal numbers of forward and reverse samples" >&2; exit 1)
         for i in $(seq ${#FORWARD[@]}); do
-            echo "${SEQUENCE_HANDLING}/scripts/trimFASTQ.sh --forward ${FORWARD[$(($i - 1))]} --reverse ${REVERSE[$(($i - 1))]} --outdir ${OUTDIR} --adapters ${ADAPTERS} ${QUAL}" | qsub ${ST_QSUB}
+            echo "${SEQUENCE_HANDLING}/scripts/trimFASTQ.sh --forward ${FORWARD[$(($i - 1))]} --reverse ${REVERSE[$(($i - 1))]} --outdir ${OUTDIR} --adapters ${ADAPTERS} --project ${PROJECT} ${QUAL}" | qsub ${ST_QSUB}
         done
         #   Submit single samples
         for i in $(seq ${#SINGLES[@]}); do
@@ -124,6 +125,23 @@ case "${ROUTINE}" in
         ;;
     3|Read_Mapping)
         echo "$(basename $0): Mapping reads..." >&2
+        checkSamples "${TRIMMED_LIST}"
+        NTHREADS=$(Nthreads ${RM_QSUB})
+        #   Partition samples into forward, reverse, and single-ended reads
+        declare -a FORWARD=($(grep -E "${FORWARD_TRIMMED}" ${TRIMMED_LIST} | sort))
+        declare -a REVERSE=($(grep -E "${REVERSE_TRIMMED}" ${TRIMMED_LIST} | sort))
+        declare -a SINGLES=($(grep -E "${SINGLES_TRIMMED}" ${TRIMMED_LIST} | sort))
+        #   Submit paired samples
+        [[ "${#FORWARD[@]}" -ne "${#REVERSE[@]}" ]] && (echo "Unequal numbers of forward and reverse samples" >&2; exit 1)
+        for i in $(seq ${#FORWARD[@]}); do
+            NAME=$(basename ${FORWARD[$(($i - 1))]} ${FORWARD_TRIMMED})
+            echo "${SEQUENCE_HANDLING}/scripts/starMap.sh --forward ${FORWARD[$(($i - 1))]} --reverse ${REVERSE[$(($i - 1))]} --index ${REF_IND} --genome ${REF_GEN} --threads ${NTHREADS} --sample-name ${NAME} --project ${PROJECT} --outdir ${OUT_DIR}" | qsub ${RM_QSUB}
+        done
+        #   Submit single samples
+        for i in $(seq ${#SINGLES[@]}); do
+            NAME=$(basename ${SINGLES[$(($i - 1))]} ${FORWARD_TRIMMED})
+            echo "${SEQUENCE_HANDLING}/scripts/starMap.sh --forward ${SINGLES[$(($i - 1))]} --index ${REF_IND} --genome ${REF_GEN} --threads ${NTHREADS} --sample-name ${NAME} --project ${PROJECT} --outdir ${OUT_DIR}" | qsub ${RM_QSUB}
+        done
         ;;
     4|SAM_Processing)
         echo "$(basename $0): Processing SAM files" >&2
