@@ -13,6 +13,7 @@ Where:  <handler> is one of:
             2 or Sequence_Trimming \n\
             3 or Read_Mapping \n\
             4 or SAM_Processing \n\
+            5 or Gene_Counting \n\
 And:    proj.conf is the full file path to the configuration file
 " >&2
     exit 1
@@ -99,7 +100,7 @@ case "${ROUTINE}" in
     1|Quality_Assessment)
         echo "$(basename $0): Assessing quality..." >&2
         checkSamples ${RAW_SAMPLES}
-        echo "${SEQUENCE_HANDLING}/scripts/assessQuality.sh --sample-list ${RAW_SAMPLES} --outdir ${OUT_DIR} --project ${PROJECT}" | qsub ${QA_QSUB} ${QSUB_EMAIL}
+        echo "${SEQUENCE_HANDLING}/scripts/assessQuality.sh --sample-list ${RAW_SAMPLES} --outdir ${OUT_DIR} --project ${PROJECT}" | qsub ${QA_QSUB} ${QSUB_EMAIL} -N Quality_Assessment
         ;;
     2|Sequence_Trimming)
         echo "$(basename $0): Trimming read sequences..." >&2
@@ -118,11 +119,13 @@ case "${ROUTINE}" in
         #   Submit paired samples
         [[ "${#FORWARD[@]}" -ne "${#REVERSE[@]}" ]] && (echo "Unequal numbers of forward and reverse samples" >&2; exit 1)
         for i in $(seq ${#FORWARD[@]}); do
-            echo "${SEQUENCE_HANDLING}/scripts/trimFASTQ.sh --forward ${FORWARD[$(($i - 1))]} --reverse ${REVERSE[$(($i - 1))]} --outdir ${OUT_DIR} --adapters ${ADAPTERS} --project ${PROJECT} ${QUAL}" | qsub ${ST_QSUB} ${QSUB_EMAIL}
+            NAME=$(basename ${FORWARDS[$(($i - 1))]} ${FORWARD_NAMING})
+            echo "${SEQUENCE_HANDLING}/scripts/trimFASTQ.sh --forward ${FORWARD[$(($i - 1))]} --reverse ${REVERSE[$(($i - 1))]} --outdir ${OUT_DIR} --adapters ${ADAPTERS} --project ${PROJECT} ${QUAL}" | qsub ${ST_QSUB} ${QSUB_EMAIL} -N "Trim_${NAME}_paired"
         done
         #   Submit single samples
         for i in $(seq ${#SINGLES[@]}); do
-            echo "${SEQUENCE_HANDLING}/scripts/trimFASTQ.sh --forward ${SINGLES[$(($i - 1))]} --outdir ${OUT_DIR} --adapters ${ADAPTERS} ${QUAL}" | qsub ${ST_QSUB} ${QSUB_EMAIL}
+            NAME=$(basename ${SINGLES[$((i - 1))]})
+            echo "${SEQUENCE_HANDLING}/scripts/trimFASTQ.sh --forward ${SINGLES[$(($i - 1))]} --outdir ${OUT_DIR} --adapters ${ADAPTERS} ${QUAL}" | qsub ${ST_QSUB} ${QSUB_EMAIL} -N "Trim_${NAME}"
         done
         ;;
     3|Read_Mapping)
@@ -137,12 +140,12 @@ case "${ROUTINE}" in
         [[ "${#FORWARD[@]}" -ne "${#REVERSE[@]}" ]] && (echo "Unequal numbers of forward and reverse samples" >&2; exit 1)
         for i in $(seq ${#FORWARD[@]}); do
             NAME=$(basename ${FORWARD[$(($i - 1))]} ${FORWARD_TRIMMED})
-            echo "${SEQUENCE_HANDLING}/scripts/starMap.sh --forward ${FORWARD[$(($i - 1))]} --reverse ${REVERSE[$(($i - 1))]} --index ${REF_IND} --genome ${REF_GEN} --threads ${NTHREADS} --sample-name ${NAME} --project ${PROJECT} --outdir ${OUT_DIR}" | qsub ${RM_QSUB} ${QSUB_EMAIL}
+            echo "${SEQUENCE_HANDLING}/scripts/starMap.sh --forward ${FORWARD[$(($i - 1))]} --reverse ${REVERSE[$(($i - 1))]} --index ${REF_IND} --genome ${REF_GEN} --threads ${NTHREADS} --sample-name ${NAME} --project ${PROJECT} --outdir ${OUT_DIR}" | qsub ${RM_QSUB} ${QSUB_EMAIL} -N "Map_${NAME}_paired"
         done
         #   Submit single samples
         for i in $(seq ${#SINGLES[@]}); do
             NAME=$(basename ${SINGLES[$(($i - 1))]} ${FORWARD_TRIMMED})
-            echo "${SEQUENCE_HANDLING}/scripts/starMap.sh --forward ${SINGLES[$(($i - 1))]} --index ${REF_IND} --genome ${REF_GEN} --threads ${NTHREADS} --sample-name ${NAME} --project ${PROJECT} --outdir ${OUT_DIR}" | qsub ${RM_QSUB} ${QSUB_EMAIL}
+            echo "${SEQUENCE_HANDLING}/scripts/starMap.sh --forward ${SINGLES[$(($i - 1))]} --index ${REF_IND} --genome ${REF_GEN} --threads ${NTHREADS} --sample-name ${NAME} --project ${PROJECT} --outdir ${OUT_DIR}" | qsub ${RM_QSUB} ${QSUB_EMAIL} -N "Map_${NAME}_single"
         done
         ;;
     4|SAM_Processing)
@@ -160,16 +163,17 @@ case "${ROUTINE}" in
                 ;;
         esac
         for sample in $(<${MAPPED_LIST}); do
-            echo "${SEQUENCE_HANDLING}/scripts/processSAM.sh --sam-file ${sample} --reference ${REF_GEN} --outdir ${OUT_DIR} --max-mem ${MAXMEM} --project ${PROJECT} ${INDEXCMD}" | qsub ${SP_QSUB} ${QSUB_EMAIL}
+            echo "${SEQUENCE_HANDLING}/scripts/processSAM.sh --sam-file ${sample} --reference ${REF_GEN} --outdir ${OUT_DIR} --max-mem ${MAXMEM} --project ${PROJECT} ${INDEXCMD}" | qsub ${SP_QSUB} ${QSUB_EMAIL} -N "Process_$(basename ${sample} .sam)"
         done
         ;;
-    Gene_Counting)
+    5|Gene_Counting)
         echo "$(basename $0): Counting genes..." >&2
-        echo "Gene_Counting is not yet implemented, exiting..." >&2
+        checkSamples "${BAM_LIST}"
+        echo "${SEQUENCE_HANDLING}/scripts/countFeatures.sh --sample-list ${BAM_LIST} --annotation ${REF_ANN} --output ${OUT_DIR}/Gene_Counting/${PROJECT}.counts" | qsub ${GC_QSUB} ${QSUB_EMAIL} -N "Gene_Counting"
         ;;
     Variant_Calling)
         echo "$(basename $0): Calling variants..." >&2
-        echo "Variant_Calling is not yet implemented, exiting..." >&2
+        echo "Variant_Calling is not yet implemented, exiting..." >&2; exit 1
         ;;
     *)
         Usage
