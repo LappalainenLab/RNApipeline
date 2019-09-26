@@ -14,7 +14,20 @@ PROJECT_DEFAULT='Trimmomatic'
 #   Usage message
 function Usage() {
     echo -e "\
-Usage: $(basename $0) -f|--forward [-r|--reverse] [-o|--outdirectory] [-a|--adapters] [-s|--split] [-64] \n\
+Usage: $(basename $0) -f|--forward [-r|--reverse] [-o|--outdir] [-a|--adapters] [-p|--project] [-s|--split] [-64] \n\
+Where:  -f|--forward is a forward or single-ended FASTQ file \n\
+        [-r|--reverse] is an optional reverse FASTQ file for paired-end sequencing data \n\
+        [-o|--outdir] is an optional output directory \n\
+            will be modified to \${OUTDIR}/Sequence_Trimming \n\
+            defaults to '$(dirname ${OUTDIR_DEFAULT})' \n\
+        [-a|--adapters] is the path to the adapters FASTA file \n\
+            defaults to '${ADAPTERS_DEFAULT}' \n\
+        [-p|--project] is an optional project name for a sample list of trimmed FASTQ files \n\
+            defaults to '${PROJECT_DEFAULT}' \n\
+        [-s|--split] is an optional delimiter for splitting the FASTQ name on \n\
+            use this to customize the output basename \n\
+        [-64] is an optional flag to run Trimmomatic in phred64 mode \n\
+            defaults to phred33 mode
 " >&2
     exit 1
 }
@@ -36,7 +49,7 @@ while [[ "$#" -ge 1 ]]; do
             REVERSE="$2"
             shift
             ;;
-        -o|--outdirectory)
+        -o|--outdir)
             OUTDIR="${2}/Sequence_Trimming"
             shift
             ;;
