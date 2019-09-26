@@ -132,3 +132,7 @@ The Quanitfy_Summarize handler depends on:
  - [GNU datamash](https://www.gnu.org/software/datamash/)
  - [Rscript](https://cran.r-project.org/)
  - [dstat](https://github.com/mojaveazure/ma_tools)
+
+## Acknowledgements
+
+RNApipeline was inspired by the [`sequence_handling`](https://github.com/MorrellLAB/sequence_handling) pipeline written by the [Morrell Lab](https://morrelllab.github.io/)
