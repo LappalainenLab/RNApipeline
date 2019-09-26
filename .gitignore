@@ -1,0 +1,7 @@
+#   Ignore log files
+*.e*
+*.o*
+
+#   Ignore system files
+.vscode/*
+.DS_Store
