@@ -13,7 +13,7 @@ Where:  <handler> is one of:
             2 or Sequence_Trimming \n\
             3 or Read_Mapping \n\
             4 or SAM_Processing \n\
-            5 or Gene_Counting \n\
+            5 or Quantify_Summarize \n\
 And:    proj.conf is the full file path to the configuration file
 " >&2
     exit 1
@@ -26,7 +26,7 @@ export -f Usage
 function MaxMem() {
     local qsub="$1"
     local memraw=$(echo "${qsub}" | grep -oE 'mem=[[:alnum:]]+' | cut -f 2 -d '=')
-    local digits=$(echo "${memraw}" | -oE '[[:digit:]]+')
+    local digits=$(echo "${memraw}" | grep -oE '[[:digit:]]+')
     if $(echo "${memraw}" | grep -i 'g' > /dev/null 2> /dev/null); then
         local maxmem="${digits}G"
     elif $(echo "${memraw}" | grep -i 'm' > /dev/null 2> /dev/null); then
@@ -69,15 +69,15 @@ SEQUENCE_HANDLING=$(pwd -P)
 $(type module > /dev/null 2> /dev/null) || function module() { eval $(/usr/bin/modulecmd bash $*); }
 export -f module
 
-#   If we have less than two arguments
-if [[ "$#" -lt 2 ]]; then Usage; fi # Display the usage message and exit
+#   If we don't have two arguments
+if [[ "$#" -ne 2 ]]; then Usage; fi # Display the usage message and exit
 
 ROUTINE="$1" # What routine are we running?
 CONFIG="$2" # Where is our config file?
 
 #   Find full path to the config file
 #   Because SGE is stupid...
-CONFIG="$(dirname ${CONFIG})/$(basename ${CONFIG})"
+CONFIG="$(realpath ${CONFIG})"
 #   For the home directory
 CONFIG="${CONFIG/'~/'/${HOME}/}"
 #   For a directory above us
@@ -119,7 +119,7 @@ case "${ROUTINE}" in
         #   Submit paired samples
         [[ "${#FORWARD[@]}" -ne "${#REVERSE[@]}" ]] && (echo "Unequal numbers of forward and reverse samples" >&2; exit 1)
         for i in $(seq ${#FORWARD[@]}); do
-            NAME=$(basename ${FORWARDS[$(($i - 1))]} ${FORWARD_NAMING})
+            NAME=$(basename ${FORWARD[$(($i - 1))]} ${FORWARD_NAMING})
             echo "${SEQUENCE_HANDLING}/scripts/trimFASTQ.sh --forward ${FORWARD[$(($i - 1))]} --reverse ${REVERSE[$(($i - 1))]} --outdir ${OUT_DIR} --adapters ${ADAPTERS} --project ${PROJECT} ${QUAL}" | qsub ${ST_QSUB} ${QSUB_EMAIL} -N "Trim_${NAME}_paired"
         done
         #   Submit single samples
@@ -155,8 +155,10 @@ case "${ROUTINE}" in
         case ${INDEX_TYPE} in
             BAI)
                 INDEXCMD=''
+                ;;
             CSI)
                 INDEXCMD='--csi'
+                ;;
             *)
                 echo "Unknown index type ${INDEX_TYPE}, please choose from 'BAI' or 'CSI'"
                 exit 1
@@ -166,10 +168,10 @@ case "${ROUTINE}" in
             echo "${SEQUENCE_HANDLING}/scripts/processSAM.sh --sam-file ${sample} --reference ${REF_GEN} --outdir ${OUT_DIR} --max-mem ${MAXMEM} --project ${PROJECT} ${INDEXCMD}" | qsub ${SP_QSUB} ${QSUB_EMAIL} -N "Process_$(basename ${sample} .sam)"
         done
         ;;
-    5|Gene_Counting)
+    5|Quantify_Summarize)
         echo "$(basename $0): Counting genes..." >&2
         checkSamples "${BAM_LIST}"
-        echo "${SEQUENCE_HANDLING}/scripts/countFeatures.sh --sample-list ${BAM_LIST} --annotation ${REF_ANN} --output ${OUT_DIR}/Gene_Counting/${PROJECT}.counts" | qsub ${GC_QSUB} ${QSUB_EMAIL} -N "Gene_Counting"
+        echo "${SEQUENCE_HANDLING}/scripts/countFeatures.sh --sample-list ${BAM_LIST} --annotation ${REF_ANN} --outdir ${OUT_DIR} --project ${PROJECT} --structural ${STRUCTURAL} --expression ${DSTAT_EXPR}" | qsub ${GC_QSUB} ${QSUB_EMAIL} -N "Quantify_Summarize"
         ;;
     Variant_Calling)
         echo "$(basename $0): Calling variants..." >&2
