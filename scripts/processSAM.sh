@@ -16,16 +16,21 @@ PROJECT_DEFAULT="SAM_Processing"
 #   Usage message
 function Usage() {
     echo -e "\
-Usage: $(basename $0) -s|--sam-file SAM [-r|--reference reference] [-o|--outdir outdirectory] [-p|--picard picard.jar] [--csi] \n\
+Usage: $(basename $0) -s|--sam-file [-r|--reference] [-o|--outdir] [-p|--picard] [-m|--max-mem] [--csi] [-p|--project] \n\
 Where:  -s|--sam is the SAM file to process \n\
         -r|--reference is an optional reference genome \n\
             defaults to '${REF_DEFAULT}' \n\
         -o|--outdir is an optional output directory \n\
-            defaults to '${OUT_DEFAULT}' \n\
+            will be modified to \${OUTDIR}/SAM_Processing n\
+            defaults to '$(dirname ${OUT_DEFAULT})' \n\
         -p|--picard is an optional path to the Picard JAR file \n\
             defaults to '${PICARD_DEFAULT}' \n\
+        -m|--max-mem is an optional maximal amount of memory for Picard \n\
+            defaults to '${MEM_DEFAULT}' \n\
         --csi is an optional flag to specify CSI indices \n\
             if not passed, makes BAI indices \n\
+        -p|--project is an optional project name for the final sample list \n\
+            defaults to '${PROJECT_DEFAULT}' \n\
 " >&2
     exit 1
 }
@@ -100,7 +105,7 @@ SAM_BASE="$(basename ${SAM} .sam)"
 (set -x; samtools view -bhT "${REF_GEN}" "${SAM}" > "${RAW_DIR}/${SAM_BASE}_raw.bam")
 
 #   Sort the BAM file
-(set -x; samtools sort "${RAW_DIR}/${SAM_BASE}_raw.bam" "${SORT_DIR}/${SAM_BASE}_sorted")
+(set -x; samtools sort "${RAW_DIR}/${SAM_BASE}_raw.bam" > "${SORT_DIR}/${SAM_BASE}_sorted.bam")
 
 #   Add read groups
 (
