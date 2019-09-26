@@ -4,13 +4,16 @@ set -eo pipefail
 
 #   Check dependencies
 declare -a DEPENDENCIES=(fastqc parallel unzip)
-for dep in ${DEPENDENCIES[@]}; do $(command -v ${dep} > /dev/null 2> /dev/null) || echo ("Cannot find ${dep}" >&2; exit 1); done
+for dep in ${DEPENDENCIES[@]}; do $(command -v ${dep} > /dev/null 2> /dev/null) || (echo "Cannot find ${dep}" >&2; exit 1); done
 
 #   Usage message
 function Usage() {
     echo -e "\
-Usage: $(basename $0) ... \n\
-Where:      ... \n\
+Usage: $(basename $0) -s|--sample-list -o|--outdir -p|--project \n\
+Where:  -s|--sample-list is a list of FASTQ files to generate quailty information for \n\
+        -o|--outdir is an output directory \n\
+            will be modified to \${OUTDIR}/Quality_Assesment \n\
+        -p|--project is a 'project' name for the QC tables
 " >&2
     exit 1
 }
