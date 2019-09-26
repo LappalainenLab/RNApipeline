@@ -171,7 +171,7 @@ case "${ROUTINE}" in
     5|Quantify_Summarize)
         echo "$(basename $0): Counting genes..." >&2
         checkSamples "${BAM_LIST}"
-        echo "${SEQUENCE_HANDLING}/scripts/countFeatures.sh --sample-list ${BAM_LIST} --annotation ${REF_ANN} --outdir ${OUT_DIR} --project ${PROJECT} --structural ${STRUCTURAL} --expression ${DSTAT_EXPR}" | qsub ${GC_QSUB} ${QSUB_EMAIL} -N "Quantify_Summarize"
+        echo "${SEQUENCE_HANDLING}/scripts/countFeatures.sh --sample-list ${BAM_LIST} --annotation ${REF_ANN} --outdir ${OUT_DIR} --project ${PROJECT} --structural ${STRUCTURAL} --expression ${DSTAT_EXPR}" | qsub ${QS_QSUB} ${QSUB_EMAIL} -N "Quantify_Summarize"
         ;;
     Variant_Calling)
         echo "$(basename $0): Calling variants..." >&2
