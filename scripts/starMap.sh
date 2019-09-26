@@ -17,15 +17,23 @@ PROJECT_DEFAULT='starMap'
 #   Usage message
 function Usage() {
     echo -e "\
-Usage: $(basename $0) -f|--forward FASTQ [-r|--reverse reverse FASTQ] [-i|--index INDEX] [-g|--genome FASTA] [-t | --threads threads]\n\
+Usage: $(basename $0) -f|--forward [-r|--reverse] [-i|--index] [-g|--genome] [-t|--threads] [-n|--sample-name] [-p|--project] [-o|--outdir] \n\
 Where:  -f|--forward is a forward or single-ended FASTQ file \n\
-        -r|--reverse is an optional reverse FASTQ file \n\
-        -g|--genome is an optional genomic FASTA file \n\
-            defaults to ${GENOME_DEFAULT} \n\
-        -i|--index is an optional STAR index directory \n\
-            defaults to ${INDEX_DEFAULT} \n\
-        -t|--threads is an optional specifier for the number of threads \n\
-            defaults to ${THREADS_DEFAULT} \n\
+        [-r|--reverse] is an optional reverse FASTQ file \n\
+        [-g|--genome] is an optional genomic FASTA file \n\
+            defaults to '${GENOME_DEFAULT}' \n\
+        [-i|--index] is an optional STAR index directory \n\
+            defaults to '${INDEX_DEFAULT}' \n\
+        [-t|--threads] is an optional specifier for the number of threads \n\
+            defaults to '${THREADS_DEFAULT}' \n\
+        [-n|--sample-name] is an optional sample name \n\
+            defaults to the basename of the forward/single-ended FASTQ file \n\
+            use to customize output naming of SAM files \n\
+        [-p|--project] is an optional project name for final sample list \n\
+            defaults to '${PROEJCT_DEFAULT}' \n\
+        [-o|--outdir] is an optional output directory \n\
+            will be modified to \${OUTDIR}/Read_Mapping \n\
+            defaults to '$(pwd -P)' \n\
 " >&2
     exit 1
 }
@@ -111,7 +119,7 @@ while [[ "$#" -gt 1 ]]; do
             shift
             ;;
         -o|--outdir) # Set output directory
-            OUTDIR="$2"
+            OUTDIR="${2}/Read_Mapping"
             shift
             ;;
         *) # Anything else
@@ -125,7 +133,7 @@ done
 [[ -z "${REF_GEN}" ]] && REF_GEN="${GENOME_DEFAULT}"
 [[ -z "${GEN_DIR}" ]] && GEN_DIR="${INDEX_DEFAULT}"
 [[ -z "${FWD}" || -z "${REF_GEN}" ]] && Usage
-[[ -z "${OUTDIR}" ]] && OUTDIR="$(pwd -P)"
+[[ -z "${OUTDIR}" ]] && OUTDIR="$(pwd -P)/Read_Mapping"
 [[ -f "${FWD}" ]] || (echo "Cannot find input file ${FWD}" >&2; exit 1)
 [[ ! -z "${REV}" && ! -f "${REV}" ]] && (echo "Cannot find reverse file ${REV}" >&2; exit 1)
 [[ -z "${THREADS}" ]] && THREADS="${THREADS_DEFAULT}"
@@ -190,5 +198,5 @@ TEMP_TWO="${PASS_TWO}tmp/"
 
 (set -x; rm -rf ${TEMP_ONE} ${TEMP_TWO})
 
-(set -x; mv "${PASS_TWO}/Aligned.out.sam" "${BASS_TWO}/${SAMPLE_NAME}.out.sam")
-echo "${BASS_TWO}/${SAMPLE_NAME}.out.sam" >> "${OUTDIR}/${PROJECT}_mapped.txt"
+(set -x; mv "${PASS_TWO}/Aligned.out.sam" "${PASS_TWO}/${SAMPLE_NAME}.out.sam")
+echo "${PASS_TWO}/${SAMPLE_NAME}.out.sam" >> "${OUTDIR}/${PROJECT}_mapped.txt"
